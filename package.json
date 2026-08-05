@@ -1,0 +1,22 @@
+{
+  "name": "zhipu-vision-mcp",
+  "version": "1.0.0",
+  "description": "智谱视觉 MCP Server — 为 DeepSeek 等纯文本模型提供视觉能力",
+  "type": "module",
+  "main": "index.mjs",
+  "bin": {
+    "zhipu-vision-mcp": "index.mjs"
+  },
+  "files": [
+    "index.mjs"
+  ],
+  "keywords": ["mcp", "vision", "zhipu", "glm-4v", "deepseek", "image-analysis"],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.25.76"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
