@@ -6,7 +6,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { readFileSync, existsSync, statSync } from "fs";
+import { readFileSync, statSync } from "fs";
 import { extname } from "path";
 
 // ═══════════════════════════════════════════════
@@ -14,14 +14,15 @@ import { extname } from "path";
 // ═══════════════════════════════════════════════
 
 const API_KEY = process.env.ZHIPU_API_KEY || "";
-const API_BASE = "https://open.bigmodel.cn/api/paas/v4";
-const CHAT_ENDPOINT = `${API_BASE}/chat/completions`;
+const CHAT_ENDPOINT = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
 const TIMEOUT_MS = 120_000;
+const MAX_RETRIES = 2;
+const MAX_TOTAL_MB = 20; // 单次请求图片总大小上限
 
 const MODELS = {
-  "glm-4.6v-flash":          { label: "GLM-4.6V-Flash",          base64: true,  maxImg: 50, maxTok: 4096, temp: 0.7, desc: "最新免费视觉模型 ⭐推荐" },
-  "glm-4.1v-thinking-flash": { label: "GLM-4.1V-Thinking-Flash", base64: true,  maxImg: 50, maxTok: 4096, temp: 0.7, desc: "带深度思考，分析更深入" },
-  "glm-4v-flash":            { label: "GLM-4V-Flash",            base64: false, maxImg: 1,  maxTok: 1024, temp: 0.7, desc: "首个免费视觉模型，仅支持URL" },
+  "glm-4.6v-flash":          { label: "GLM-4.6V-Flash",          base64: true,  maxImg: 50, maxTok: 4096, temp: 0.7, free: true },
+  "glm-4.1v-thinking-flash": { label: "GLM-4.1V-Thinking-Flash", base64: true,  maxImg: 50, maxTok: 4096, temp: 0.7, free: true },
+  "glm-4v-flash":            { label: "GLM-4V-Flash",            base64: false, maxImg: 1,  maxTok: 1024, temp: 0.7, free: true },
 };
 
 const MODEL_KEYS = Object.keys(MODELS);
@@ -32,53 +33,74 @@ const MAX_SIZE_MB = 5;
 // 工具函数
 // ═══════════════════════════════════════════════
 
-const isURL = (s) => /^https?:\/\//.test(s);
+const isURL = (s) => /^https?:\/\//i.test(s);
 
 const MIME_MAP = {
   ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
   ".webp": "image/webp", ".gif": "image/gif", ".bmp": "image/bmp",
 };
+const MIME_LIST = Object.keys(MIME_MAP).join("/");
+
+const DETAIL_PROMPTS = {
+  concise:  "请用一两句话简要描述这张图片的内容。",
+  standard: "请描述这张图片的主要内容，包括关键元素和文字信息。",
+  detailed: "请详细描述这张图片的内容，涵盖：整体场景/主题、关键元素和细节、所有文字内容（原文输出）、颜色和构图特点、可能传达的信息或目的。请用中文回答。",
+};
 
 function validateImage(filePath) {
-  // 用 statSync 一步完成存在性+大小检查，避免 TOCTOU 竞态
   let stat;
-  try {
-    stat = statSync(filePath);
-  } catch {
+  try { stat = statSync(filePath); } catch {
     return { ok: false, msg: `文件不存在或无法访问: ${filePath}` };
   }
   const ext = extname(filePath).toLowerCase();
   if (!MIME_MAP[ext]) {
-    return { ok: false, msg: `不支持的格式: ${ext}，仅支持 ${Object.keys(MIME_MAP).join("/")}` };
+    return { ok: false, msg: `不支持的格式: ${ext}，仅支持 ${MIME_LIST}` };
   }
   const sizeMB = stat.size / (1024 * 1024);
   if (sizeMB > MAX_SIZE_MB) {
     return { ok: false, msg: `图片过大: ${sizeMB.toFixed(1)}MB，限制 ${MAX_SIZE_MB}MB` };
   }
-  return { ok: true };
+  return { ok: true, size: stat.size };
 }
 
 function toBase64Url(filePath) {
   const ext = extname(filePath).toLowerCase();
-  const mime = MIME_MAP[ext] || "image/jpeg";
+  const mime = MIME_MAP[ext];
   return `data:${mime};base64,${readFileSync(filePath).toString("base64")}`;
 }
 
-/** 规范化模型输出文本（处理 content 可能是数组/对象的情况） */
+/**
+ * 规范化模型输出文本。
+ * GLM API 可能返回 string、[{type:"text", text:"..."}]、或 {text:"..."}
+ */
 function normalizeContent(message) {
   if (typeof message === "string") return message;
   if (Array.isArray(message)) {
-    return message.map(p => (typeof p === "string" ? p : p?.text || "")).join("");
+    return message.map(p => {
+      if (typeof p === "string") return p;
+      if (p?.text != null) return p.text;       // {type:"text", text:"..."}
+      if (p?.content != null) return normalizeContent(p.content); // 嵌套
+      return "";
+    }).join("");
   }
-  if (message && typeof message === "object" && "text" in message) return message.text;
-  return String(message ?? "");
+  if (message && typeof message === "object") {
+    if (message.text != null) return message.text;
+    if (message.content != null) return normalizeContent(message.content);
+  }
+  return "";
 }
 
 // ═══════════════════════════════════════════════
 // 核心：调用 GLM 视觉 API
 // ═══════════════════════════════════════════════
 
-/** @returns {{ ok: true, text: string } | { ok: false, text: string }} */
+/**
+ * @param {string} model - 模型名
+ * @param {string[]} images - 图片路径或 URL 数组
+ * @param {string} prompt - 提示词
+ * @param {{ temperature?: number }} [opts] - 可选参数
+ * @returns {Promise<{ok: boolean, text: string}>}
+ */
 async function callGLM(model, images, prompt, opts = {}) {
   // 1. 检查 API Key
   if (!API_KEY) {
@@ -96,13 +118,15 @@ async function callGLM(model, images, prompt, opts = {}) {
     return { ok: false, text: `不支持的模型: ${model}。可选: ${MODEL_KEYS.join(", ")}` };
   }
 
-  // 3. 图片数量校验（maxImg 不再死配置）
+  // 3. 图片数量校验
   if (images.length > info.maxImg) {
     return { ok: false, text: `模型 ${info.label} 最多支持 ${info.maxImg} 张图片，当前传入 ${images.length} 张` };
   }
 
-  // 4. 构建 content 数组
+  // 4. 构建 content 数组 + 累计大小校验
   const content = [];
+  let totalBytes = 0;
+
   for (const img of images) {
     if (isURL(img)) {
       content.push({ type: "image_url", image_url: { url: img } });
@@ -114,6 +138,10 @@ async function callGLM(model, images, prompt, opts = {}) {
       }
       const valid = validateImage(img);
       if (!valid.ok) return { ok: false, text: valid.msg };
+      totalBytes += valid.size;
+      if (totalBytes > MAX_TOTAL_MB * 1024 * 1024) {
+        return { ok: false, text: `图片总大小超过 ${MAX_TOTAL_MB}MB 上限` };
+      }
       try {
         content.push({ type: "image_url", image_url: { url: toBase64Url(img) } });
       } catch (e) {
@@ -123,62 +151,88 @@ async function callGLM(model, images, prompt, opts = {}) {
   }
   content.push({ type: "text", text: prompt });
 
-  // 5. 发起请求
-  try {
-    const resp = await fetch(CHAT_ENDPOINT, {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content }],
-        stream: false,
-        temperature: opts.temperature ?? info.temp,
-        max_tokens: info.maxTok,
-      }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
+  // 5. 发起请求（支持 429/5xx 重试）
+  const body = JSON.stringify({
+    model,
+    messages: [{ role: "user", content }],
+    stream: false,
+    temperature: opts.temperature ?? info.temp,
+    max_tokens: info.maxTok,
+  });
 
-    if (!resp.ok) {
+  let lastError = null;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const resp = await fetch(CHAT_ENDPOINT, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${API_KEY}`, "Content-Type": "application/json" },
+        body,
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+
+      if (resp.ok) {
+        // 安全解析 JSON（防御 2xx 空 body / HTML）
+        let result;
+        try { result = await resp.json(); } catch {
+          return { ok: false, text: "API 返回了非 JSON 响应，请检查网络或代理" };
+        }
+
+        const choice = result.choices?.[0];
+        if (!choice) {
+          return { ok: false, text: "模型未返回任何内容" };
+        }
+
+        const msg = choice.message ?? {};
+        let text = normalizeContent(msg.content);
+        if (!text.trim() && msg.reasoning_content) {
+          text = normalizeContent(msg.reasoning_content);
+        }
+        // 内容确实为空时作为失败返回
+        if (!text.trim()) {
+          return { ok: false, text: "模型返回了空内容" };
+        }
+
+        const usage = result.usage ?? {};
+        const pTok = usage.prompt_tokens ?? "-";
+        const cTok = usage.completion_tokens ?? "-";
+        const freeLabel = info.free ? "（免费）" : "";
+        const footer = `\n\n---\n📊 ${info.label}${freeLabel} | 输入 ${pTok} | 输出 ${cTok} tokens`;
+
+        return { ok: true, text: text + footer };
+      }
+
+      // 可重试的状态码
+      if ((resp.status === 429 || resp.status >= 500) && attempt < MAX_RETRIES) {
+        const retryAfter = parseInt(resp.headers.get("Retry-After") || "1", 10);
+        const delay = Math.min(retryAfter * 1000, 3000);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+
+      // 不可重试的错误
       let detail = await resp.text().catch(() => "无法读取响应");
       try { detail = JSON.parse(detail)?.error?.message || detail; } catch {}
       return { ok: false, text: `API 错误 (HTTP ${resp.status}): ${detail}` };
+
+    } catch (e) {
+      lastError = e;
+      // 网络错误可重试
+      if (attempt < MAX_RETRIES && (e.name === "TimeoutError" || e.name === "AbortError" || e.name === "TypeError")) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
+      break;
     }
+  }
 
-    // 安全解析 JSON（防御 2xx 空 body / HTML）
-    let result;
-    try {
-      result = await resp.json();
-    } catch {
-      return { ok: false, text: "API 返回了非 JSON 响应，请检查网络或代理" };
-    }
-
-    const choice = result.choices?.[0];
-    if (!choice) {
-      return { ok: false, text: "模型未返回任何内容" };
-    }
-
-    const msg = choice.message ?? {};
-    // 优先 content，回退到 reasoning_content（thinking 模型安全/拒绝类响应）
-    let text = normalizeContent(msg.content);
-    if (!text && msg.reasoning_content) {
-      text = normalizeContent(msg.reasoning_content);
-    }
-    if (!text) text = "(空)";
-
-    // usage footer（防御字段缺失）
-    const usage = result.usage ?? {};
-    const pTok = usage.prompt_tokens ?? "-";
-    const cTok = usage.completion_tokens ?? "-";
-    const footer = `\n\n---\n📊 ${info.label}（免费）| 输入 ${pTok} | 输出 ${cTok} tokens`;
-
-    return { ok: true, text: text + footer };
-  } catch (e) {
-    // Node 18 早期版本 fetch 超时抛 AbortError 而非 TimeoutError
-    if (e.name === "TimeoutError" || e.name === "AbortError") {
+  // 所有重试耗尽
+  if (lastError) {
+    if (lastError.name === "TimeoutError" || lastError.name === "AbortError") {
       return { ok: false, text: `请求超时（${TIMEOUT_MS / 1000}秒），请重试` };
     }
-    return { ok: false, text: `调用失败: ${e.message}` };
+    return { ok: false, text: `调用失败: ${lastError.message}` };
   }
+  return { ok: false, text: "调用失败: 未知错误" };
 }
 
 // ═══════════════════════════════════════════════
@@ -186,7 +240,6 @@ async function callGLM(model, images, prompt, opts = {}) {
 // ═══════════════════════════════════════════════
 
 const server = new McpServer({ name: "zhipu-vision", version: "1.0.0" });
-
 const MODEL_ENUM = z.enum(MODEL_KEYS);
 
 // ── 工具 1: 分析图片 ──
@@ -207,14 +260,7 @@ server.tool(
     ),
   },
   async ({ image, prompt, model, detail }) => {
-    const defaults = {
-      concise:  "请用一两句话简要描述这张图片的内容。",
-      standard: "请描述这张图片的主要内容，包括关键元素和文字信息。",
-      detailed: "请详细描述这张图片的内容，涵盖：整体场景/主题、关键元素和细节、所有文字内容（原文输出）、颜色和构图特点、可能传达的信息或目的。请用中文回答。",
-    };
-    const finalPrompt = prompt
-      ? prompt                              // 用户显式传入优先
-      : defaults[detail] ?? defaults.detailed;
+    const finalPrompt = prompt || DETAIL_PROMPTS[detail];
     const { ok, text } = await callGLM(model, [image], finalPrompt);
     return { content: [{ type: "text", text }], isError: !ok };
   }
@@ -231,7 +277,6 @@ server.tool(
   },
   async ({ image, model }) => {
     const prompt = "请精准提取这张图片中的所有文字内容。保持原有格式、排版结构和层级关系。表格用Markdown表格格式，代码保持缩进。只输出文字，不加解释。";
-    // OCR 使用低温度避免幻觉字符
     const { ok, text } = await callGLM(model, [image], prompt, { temperature: 0.1 });
     return { content: [{ type: "text", text }], isError: !ok };
   }
@@ -265,12 +310,20 @@ if (!API_KEY) {
 }
 
 const transport = new StdioServerTransport();
-await server.connect(transport);
 
-// 优雅退出：收到 SIGINT/SIGTERM 时关闭 transport，避免孤儿进程
+// 优雅退出：提前注册，覆盖信号 + stdin EOF + transport close
 const shutdown = async () => {
   try { await server.close(); } catch {}
   process.exit(0);
 };
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
+process.stdin.on("end", shutdown);
+transport.onclose = shutdown;
+
+try {
+  await server.connect(transport);
+} catch (e) {
+  console.error("❌ MCP Server 启动失败:", e.message);
+  process.exit(1);
+}
