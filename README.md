@@ -18,23 +18,23 @@
 
 ### 2. 安装
 
+#### 方式 A：npx 一键（推荐）
+
 ```bash
-# 解压后进入目录
+claude mcp add -s user zhipu-vision \
+  --env ZHIPU_API_KEY=你的密钥 \
+  -- npx github:apsuadwf/zhipu-vision-mcp
+```
+
+#### 方式 B：本地安装
+
+```bash
+git clone https://github.com/apsuadwf/zhipu-vision-mcp.git
 cd zhipu-vision-mcp
 npm install
 npm link
-```
-
-### 3. 配置到 Claude Code
-
-```bash
 claude mcp add -s user zhipu-vision --env ZHIPU_API_KEY=你的密钥 -- zhipu-vision-mcp
 ```
-
-> 如果 `npm link` 不生效，也可以用完整路径：
-> ```bash
-> claude mcp add -s user zhipu-vision --env ZHIPU_API_KEY=你的密钥 -- node /path/to/index.mjs
-> ```
 
 ### 4. 使用
 

@@ -12,6 +12,7 @@
   ],
   "keywords": ["mcp", "vision", "zhipu", "glm-4v", "deepseek", "image-analysis"],
   "license": "MIT",
+  "repository": "github:apsuadwf/zhipu-vision-mcp",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
     "zod": "^3.25.76"
