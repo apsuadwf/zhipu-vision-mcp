@@ -1,6 +1,6 @@
 # 智谱视觉 MCP Server
 
-> 为 DeepSeek 等纯文本模型提供视觉能力 —— 通过智谱免费视觉模型"看懂"图片。
+> 🌐 为 DeepSeek 等纯文本模型提供视觉能力 —— 通过智谱免费视觉模型"看懂"图片。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/apsuadwf/zhipu-vision-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/apsuadwf/zhipu-vision-mcp/actions/workflows/ci.yml)
@@ -8,11 +8,11 @@
 
 ## 特性
 
-- **完全免费**：全部使用智谱免费视觉模型，无需额外付费
-- **本地文件 + 远程 URL**：直接传图片路径即可，自动转 Base64 上传
-- **429 自动降级链**：默认模型限流时自动切换下一个模型，同模型内自动重试
-- **三个专用工具**：图片分析 / OCR 提取文字 / 双图对比
-- **零配置依赖**：只需一个 `ZHIPU_API_KEY` 环境变量
+- 🆓 **完全免费**：全部使用智谱免费视觉模型，无需额外付费
+- 🖼️ **本地文件 + 远程 URL**：直接传图片路径即可，自动转 Base64 上传
+- 🔄 **429 自动降级链**：默认模型限流时自动切换下一个模型，同模型内自动重试
+- 🛠️ **三个专用工具**：图片分析 / OCR 提取文字 / 双图对比
+- 📦 **零配置依赖**：只需一个 `ZHIPU_API_KEY` 环境变量
 
 ## 原理
 
@@ -74,7 +74,7 @@ claude mcp add -s user zhipu-vision \
 | **Cherry Studio** | 设置 → MCP 服务 → 添加 → 选择「命令」类型 |
 | **Continue** | `~/.continue/config.yaml` 的 `mcpServers` 字段 |
 
-> 提示：本地安装（方式 A）后，各客户端配置里的 `command` 可直接填全局命令 `zhipu-vision-mcp`（无需 npx、无首次下载）。
+> 💡 本地安装（方式 A）后，各客户端配置里的 `command` 可直接填全局命令 `zhipu-vision-mcp`（无需 npx、无首次下载）。
 
 ```jsonc
 // Cursor: .cursor/mcp.json
@@ -111,7 +111,7 @@ mcpServers:
 
 | 模型 | 特点 |
 |------|------|
-| `glm-4.6v-flash`（默认） | 最新免费模型，支持本地文件（Base64）和多图 |
+| `glm-4.6v-flash` ⭐（默认） | 最新免费模型，支持本地文件（Base64）和多图 |
 | `glm-4.1v-thinking-flash` | 带深度思考，分析更深入 |
 | `glm-4v-flash` | 首个免费模型，仅支持 URL 单图 |
 
@@ -121,7 +121,7 @@ mcpServers:
 
 | 变量 | 必填 | 说明 |
 |------|------|------|
-| `ZHIPU_API_KEY` | 是 | 智谱开放平台 API Key（[获取地址](https://bigmodel.cn/usercenter/proj-mgmt/apikeys)） |
+| `ZHIPU_API_KEY` | ✅ | 智谱开放平台 API Key（[获取地址](https://bigmodel.cn/usercenter/proj-mgmt/apikeys)） |
 
 ## 限制与行为
 
