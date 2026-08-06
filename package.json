@@ -3,19 +3,35 @@
   "version": "1.0.0",
   "description": "智谱视觉 MCP Server — 为 DeepSeek 等纯文本模型提供视觉能力",
   "type": "module",
-  "main": "index.mjs",
+  "main": "src/index.mjs",
   "bin": {
-    "zhipu-vision-mcp": "index.mjs"
+    "zhipu-vision-mcp": "src/index.mjs"
   },
   "files": [
-    "index.mjs"
+    "src/"
   ],
-  "keywords": ["mcp", "vision", "zhipu", "glm-4v", "deepseek", "image-analysis"],
+  "scripts": {
+    "test": "node --test",
+    "lint": "eslint .",
+    "check": "npm run lint && npm test"
+  },
+  "keywords": [
+    "mcp",
+    "vision",
+    "zhipu",
+    "glm-4v",
+    "deepseek",
+    "image-analysis"
+  ],
   "license": "MIT",
   "repository": "github:apsuadwf/zhipu-vision-mcp",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
     "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5"
   },
   "engines": {
     "node": ">=18"
