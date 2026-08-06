@@ -7,10 +7,11 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-08-06
+
 ### 新增
 
-- 开源化改造：源码按职责拆分到 `src/`，新增单元测试（node:test）、CI（GitHub Actions）、ESLint 代码规范
-- 一键本地安装：`npm run setup`（自动 `npm link` + 配置 Claude MCP）
+- 一键本地安装：`npm run setup`（自动 `npm link` + 读取 `.env` 配置 Claude MCP），本地安装成为推荐方式
 
 ## [1.0.0] - 2026-08-05
 
@@ -20,6 +21,10 @@
 - 三个工具：`analyze_image`（分析图片）、`extract_text_from_image`（OCR 提取文字）、`compare_images`（对比两张图片）
 - 三种免费视觉模型：`glm-4.6v-flash`（默认，支持本地文件与多图）、`glm-4.1v-thinking-flash`（带深度思考）、`glm-4v-flash`（仅 URL 单图）
 - 429 限流降级链：默认模型限流时自动切换下一个模型，同模型内自动重试
+
+### 其他
+
+- 开源化改造：源码按职责拆分到 `src/`，新增单元测试（node:test）、CI（GitHub Actions）、ESLint 代码规范
 
 ### 修复
 
