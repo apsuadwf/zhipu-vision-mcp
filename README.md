@@ -4,6 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/apsuadwf/zhipu-vision-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/apsuadwf/zhipu-vision-mcp/actions/workflows/ci.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/apsuadwf/zhipu-vision-mcp)](https://github.com/apsuadwf/zhipu-vision-mcp/releases)
 
 ## 特性
 
