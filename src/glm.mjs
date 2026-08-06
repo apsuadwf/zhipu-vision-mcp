@@ -53,7 +53,7 @@ export async function callGLM(model, images, prompt, opts = {}) {
   if (!API_KEY) {
     return { ok: false, text:
       "未设置 ZHIPU_API_KEY 环境变量。\n\n"
-      + "📋 获取步骤：\n"
+      + "获取步骤：\n"
       + "  1. 访问 https://bigmodel.cn/usercenter/proj-mgmt/apikeys\n"
       + "  2. 登录后创建 API Key\n"
       + "  3. 设置环境变量: export ZHIPU_API_KEY='你的密钥'" };
@@ -126,7 +126,7 @@ export async function callGLM(model, images, prompt, opts = {}) {
           const usage = result.usage ?? {};
           const freeLabel = info.free ? "（免费）" : "";
           const switched = m !== model ? ` (由 ${MODELS[model].label} 降级)` : "";
-          const footer = `\n\n---\n📊 ${info.label}${freeLabel}${switched} | 输入 ${usage.prompt_tokens ?? "-"} | 输出 ${usage.completion_tokens ?? "-"} tokens`;
+          const footer = `\n\n---\n${info.label}${freeLabel}${switched} | 输入 ${usage.prompt_tokens ?? "-"} | 输出 ${usage.completion_tokens ?? "-"} tokens`;
           return { ok: true, text: text + footer };
         }
 

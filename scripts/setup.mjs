@@ -17,9 +17,9 @@ const run = (cmd, args) => {
 };
 
 // 1. 链接到全局（MCP 配置指向全局 bin，启动零下载）
-console.log("🔗 执行 npm link ...");
+console.log("执行 npm link ...");
 if (run("npm", ["link"]) !== 0) {
-  console.error("❌ npm link 失败");
+  console.error("npm link 失败");
   process.exit(1);
 }
 
@@ -36,12 +36,12 @@ const args = ["mcp", "add", "-s", "user", "zhipu-vision"];
 if (apiKey) args.push("--env", `ZHIPU_API_KEY=${apiKey}`);
 args.push("--", "zhipu-vision-mcp");
 
-console.log("🔧 配置 Claude MCP ...");
+console.log("配置 Claude MCP ...");
 if (run("claude", args) === 0) {
   console.log(apiKey
-    ? "✅ 安装完成！zhipu-vision 已配置到 Claude（含 API Key）"
-    : "✅ 安装完成！zhipu-vision 已配置到 Claude\n   ⚠️ 未找到 ZHIPU_API_KEY，请执行: claude mcp add zhipu-vision --env ZHIPU_API_KEY=你的密钥");
+    ? "安装完成！zhipu-vision 已配置到 Claude（含 API Key）"
+    : "安装完成！zhipu-vision 已配置到 Claude\n   注意: 未找到 ZHIPU_API_KEY，请执行: claude mcp add zhipu-vision --env ZHIPU_API_KEY=你的密钥");
 } else {
-  console.error("❌ claude mcp add 失败，请手动执行上方的 claude mcp add 命令");
+  console.error("claude mcp add 失败，请手动执行上方的 claude mcp add 命令");
   process.exit(1);
 }

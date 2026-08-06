@@ -12,7 +12,7 @@ import { server } from "./server.mjs";
 // ═══════════════════════════════════════════════
 
 if (!getAPIKey()) {
-  console.error("⚠️  警告: 未设置 ZHIPU_API_KEY 环境变量");
+  console.error("警告: 未设置 ZHIPU_API_KEY 环境变量");
   console.error("   请访问 https://bigmodel.cn/usercenter/proj-mgmt/apikeys 获取密钥");
 }
 
@@ -31,6 +31,6 @@ transport.onclose = shutdown;
 try {
   await server.connect(transport);
 } catch (e) {
-  console.error("❌ MCP Server 启动失败:", e.message);
+  console.error("MCP Server 启动失败:", e.message);
   process.exit(1);
 }
