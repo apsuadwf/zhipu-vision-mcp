@@ -30,7 +30,24 @@
 
 ### 2. 安装
 
-#### 方式 A：npx 一键（推荐）
+#### 方式 A：本地安装（推荐，一条命令）
+
+```bash
+git clone https://github.com/apsuadwf/zhipu-vision-mcp.git
+cd zhipu-vision-mcp
+npm run setup
+```
+
+`setup` 脚本自动完成：`npm link`（链接到全局）+ 读取 `.env` 中的 `ZHIPU_API_KEY` 配置 Claude MCP。
+没有 `.env` 时先创建（参照 `.env.example`），或运行后手动补上：
+
+```bash
+claude mcp add -s user zhipu-vision --env ZHIPU_API_KEY=你的密钥 -- zhipu-vision-mcp
+```
+
+本地安装后 Server 已全局可用（`zhipu-vision-mcp` 命令），Claude 每次启动零下载、零网络依赖。
+
+#### 方式 B：npx 远程（备选）
 
 ```bash
 claude mcp add -s user zhipu-vision \
@@ -38,15 +55,7 @@ claude mcp add -s user zhipu-vision \
   -- npx github:apsuadwf/zhipu-vision-mcp
 ```
 
-#### 方式 B：本地安装
-
-```bash
-git clone https://github.com/apsuadwf/zhipu-vision-mcp.git
-cd zhipu-vision-mcp
-npm install
-npm link
-claude mcp add -s user zhipu-vision --env ZHIPU_API_KEY=你的密钥 -- zhipu-vision-mcp
-```
+> 注：npx 首次运行会从 GitHub 下载源码（有本地缓存），首次较慢；本地安装（方式 A）无此问题。
 
 ### 3. 使用
 
@@ -64,6 +73,8 @@ claude mcp add -s user zhipu-vision --env ZHIPU_API_KEY=你的密钥 -- zhipu-vi
 | **Cursor** | 项目根目录创建 `.cursor/mcp.json` |
 | **Cherry Studio** | 设置 → MCP 服务 → 添加 → 选择「命令」类型 |
 | **Continue** | `~/.continue/config.yaml` 的 `mcpServers` 字段 |
+
+> 💡 本地安装（方式 A）后，各客户端配置里的 `command` 可直接填全局命令 `zhipu-vision-mcp`（无需 npx、无首次下载）。
 
 ```jsonc
 // Cursor: .cursor/mcp.json
@@ -128,12 +139,13 @@ mcpServers:
 用官方 Inspector 可视化调试工具（无需真实图片）：
 
 ```bash
+# 本地安装后（推荐）
+npx @modelcontextprotocol/inspector zhipu-vision-mcp
+
+# 或 npx 远程
 npx @modelcontextprotocol/inspector npx github:apsuadwf/zhipu-vision-mcp
-```
 
-本地开发时直接指向源码：
-
-```bash
+# 或本地开发时直接指向源码
 npx @modelcontextprotocol/inspector node src/index.mjs
 ```
 

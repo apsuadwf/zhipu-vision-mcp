@@ -4,7 +4,7 @@ export default [
   { ignores: ["node_modules/", "package-lock.json"] },
   js.configs.recommended,
   {
-    files: ["src/**/*.mjs", "test/**/*.mjs", "eslint.config.js"],
+    files: ["src/**/*.mjs", "test/**/*.mjs", "scripts/**/*.mjs", "eslint.config.js"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",

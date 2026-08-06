@@ -10,6 +10,7 @@
 ### 新增
 
 - 开源化改造：源码按职责拆分到 `src/`，新增单元测试（node:test）、CI（GitHub Actions）、ESLint 代码规范
+- 一键本地安装：`npm run setup`（自动 `npm link` + 配置 Claude MCP）
 
 ## [1.0.0] - 2026-08-05
 
